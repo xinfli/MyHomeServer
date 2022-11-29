@@ -1,0 +1,38 @@
+version: "3"
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    networks:
+      - traefik
+    restart: always
+    ports:
+      - ${Management_Port}:9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${Data_Folder}:/data
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+
+      # Services and middlewares
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+      - traefik.http.middlewares.portainer-stripprefix.stripprefix.prefixes=/portainer
+
+      # Routers for http
+      - traefik.http.routers.portainer-http.service=portainer
+      - traefik.http.routers.portainer-http.entrypoints=http
+      - traefik.http.routers.portainer-http.rule=Host(`${Management_Domain}`) && PathPrefix(`/portainer{regex:$$|/.*}`)
+      - traefik.http.routers.portainer-http.middlewares=portainer-stripprefix,internal-access-only@file
+
+      # Routers for https
+      - traefik.http.routers.portainer-https.service=portainer
+      - traefik.http.routers.portainer-https.entrypoints=https
+      - traefik.http.routers.portainer-https.rule=Host(`${Management_Domain}`) && PathPrefix(`/portainer{regex:$$|/.*}`)
+      - traefik.http.routers.portainer-https.middlewares=portainer-stripprefix,internal-access-only@file
+      - traefik.http.routers.portainer-https.tls.certresolver=letsEncrypt
+
+networks:
+  traefik:
+    external: true
